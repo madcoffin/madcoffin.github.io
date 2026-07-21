@@ -152,6 +152,11 @@
   .file-chip .prog{ width:80px; height:5px; background:var(--border); border-radius:100px; overflow:hidden; }
   .file-chip .prog i{ display:block; height:100%; width:0%; background:var(--blue); transition:width .4s; }
   .upload-foot{ padding:16px 18px; display:flex; gap:8px; }
+  .btn-save:disabled{ opacity:.6; cursor:not-allowed; }
+
+  .upload-progress-track{ width:100%; height:8px; background:var(--border); border-radius:100px; overflow:hidden; }
+  .upload-progress-track i{ display:block; height:100%; width:0%; background:var(--blue); transition:width .3s ease; }
+  .upload-progress-label{ display:flex; justify-content:space-between; font-size:12.5px; color:var(--text-2); margin-top:8px; }
 
   /* ================= Modal ================= */
   .modal-backdrop{ position:fixed; inset:0; background:rgba(17,24,39,.55); display:none; align-items:center; justify-content:center; z-index:60; }
@@ -190,17 +195,17 @@
 
   .sub-current{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2); font-size:13px; }
 
-  .bulk-bar{ position:fixed; left:calc(264px + (100% - 264px)/2); bottom:22px; transform:translate(-50%,120%);
+  .bulk-bar{ position:fixed; left:calc(264px + (100% - 264px)/2); top:50%; transform:translate(-50%,-50%) scale(.9); opacity:0; pointer-events:none;
     background:var(--text-1); color:#fff; border-radius:12px; padding:11px 14px; display:flex; align-items:center; gap:12px;
-    box-shadow:0 10px 30px rgba(0,0,0,.25); transition:transform .2s; z-index:40; }
-  .bulk-bar.show{ transform:translate(-50%,0); }
+    box-shadow:0 10px 30px rgba(0,0,0,.25); transition:transform .2s, opacity .2s; z-index:40; }
+  .bulk-bar.show{ transform:translate(-50%,-50%) scale(1); opacity:1; pointer-events:auto; }
   .bulk-bar span.count{ font-size:13px; font-weight:600; padding-left:2px; }
   .bulk-bar button{ background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2); color:#fff; border-radius:7px; padding:7px 12px; font-size:12.5px; font-weight:600; cursor:pointer; display:flex; gap:6px; align-items:center; }
   .bulk-bar button.danger{ background:rgba(220,38,38,.28); border-color:rgba(220,38,38,.4); }
 
-  .toast{ position:fixed; right:24px; bottom:24px; background:var(--text-1); color:#fff; padding:11px 16px; border-radius:9px; font-size:13px;
-    box-shadow:0 10px 24px rgba(0,0,0,.2); transform:translateY(20px); opacity:0; transition:.2s; z-index:70; }
-  .toast.show{ transform:translateY(0); opacity:1; }
+  .toast{ position:fixed; left:calc(264px + (100% - 264px)/2); top:50%; background:var(--text-1); color:#fff; padding:11px 16px; border-radius:9px; font-size:13px;
+    box-shadow:0 10px 24px rgba(0,0,0,.2); transform:translate(-50%,-50%) scale(.9); opacity:0; pointer-events:none; transition:.2s; z-index:70; }
+  .toast.show{ transform:translate(-50%,-50%) scale(1); opacity:1; pointer-events:auto; }
 
   ::-webkit-scrollbar{ width:8px; height:8px; }
   ::-webkit-scrollbar-thumb{ background:var(--border-strong); border-radius:8px; }
@@ -352,7 +357,6 @@
             <thead>
               <tr>
                 <th style="width:36px"><input type="checkbox" class="cb" onclick="toggleAll(this)"></th>
-                <th>번호</th>
                 <th>썸네일</th>
                 <th>제목 / 파일명</th>
                 <th>폴더</th>
@@ -444,13 +448,6 @@
                 <span id="subNameLabel">선택된 파일 없음 (SRT/VTT, 한국어)</span>
               </div>
               <input type="file" id="subInput" accept=".srt,.vtt" style="display:none" onchange="document.getElementById('subNameLabel').textContent=this.files[0]?this.files[0].name:'선택된 파일 없음 (SRT/VTT, 한국어)'">
-            </div>
-          </div>
-          <div class="upload-row">
-            <div class="upload-label">주의사항</div>
-            <div class="upload-value notice">
-              동영상 업로드가 완료된 후에는 내부적으로 동영상 인코딩 작업이 이루어집니다.<br>
-              일반적으로 동영상 인코딩 작업은 업로드 후 5~10분정도 소요됩니다. 동영상 목록을 확인해주세요.
             </div>
           </div>
           <div class="upload-foot">
@@ -604,6 +601,19 @@
   </div>
 </div>
 
+<!-- Upload progress Modal -->
+<div class="modal-backdrop" id="uploadProgressModal">
+  <div class="modal" style="width:420px;">
+    <div class="modal-head">
+      <div><h3>동영상 등록 중</h3><p>파일 용량에 따라 다소 시간이 걸릴 수 있습니다. 창을 닫지 말고 잠시만 기다려주세요.</p></div>
+    </div>
+    <div class="modal-body">
+      <div class="upload-progress-track"><i id="uploadProgressBar"></i></div>
+      <div class="upload-progress-label"><span>업로드 진행률</span><span id="uploadProgressPct">0%</span></div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -655,7 +665,6 @@ function rowHtml(v, idx){
   return `
   <tr data-id="${v.id}" data-folder="${v.folder}" data-sub="${v.sub}" data-course="${v.courses.length>0}" data-title="${(v.title+v.file).toLowerCase()}">
     <td><input type="checkbox" class="cb rowcb" onclick="updateBulkBar()"></td>
-    <td class="mono" style="color:var(--text-3)">${idx+1}</td>
     <td>${thumbHtml(v)}</td>
     <td>
       <div class="v-title">${v.title}</div>
@@ -966,6 +975,7 @@ function handleThumbFile(file){
   img.src = URL.createObjectURL(file);
   wrap.style.display = 'block';
 }
+let uploadInProgress = false;
 function submitUpload(){
   const titleInput = document.getElementById('uploadTitleInput');
   if(!titleInput.value.trim()){
@@ -973,9 +983,41 @@ function submitUpload(){
     titleInput.focus();
     return;
   }
-  setTabById('list');
-  showToast('동영상 업로드가 시작되었습니다. 인코딩 완료까지 약 5~10분 소요됩니다.');
-  titleInput.value = '';
+  if(uploadInProgress) return;
+  startUploadProgress(titleInput);
+}
+function startUploadProgress(titleInput){
+  uploadInProgress = true;
+  const saveBtn = document.querySelector('#panel-upload .btn-save');
+  saveBtn.disabled = true;
+  saveBtn.textContent = '등록 중...';
+  const bar = document.getElementById('uploadProgressBar');
+  const pct = document.getElementById('uploadProgressPct');
+  bar.style.width = '0%';
+  pct.textContent = '0%';
+  openModal('uploadProgressModal');
+
+  let progress = 0;
+  const timer = setInterval(()=>{
+    progress = Math.min(100, progress + Math.random()*18 + 6);
+    bar.style.width = progress + '%';
+    pct.textContent = Math.floor(progress) + '%';
+    if(progress >= 100){
+      clearInterval(timer);
+      setTimeout(()=>{
+        closeModal('uploadProgressModal');
+        uploadInProgress = false;
+        saveBtn.disabled = false;
+        saveBtn.textContent = '업로드';
+        setTabById('list');
+        showToast('동영상이 업로드 되었습니다.');
+        titleInput.value = '';
+        document.getElementById('fileInput').value = '';
+        document.getElementById('fileNameLabel').textContent = '선택된 파일 없음 (다중 선택 가능)';
+        document.getElementById('fileChipList').innerHTML = '';
+      }, 400);
+    }
+  }, 350);
 }
 
 /* ---------------- Toast ---------------- */
