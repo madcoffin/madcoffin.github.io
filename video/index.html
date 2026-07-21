@@ -764,10 +764,19 @@ function updateBulkBar(){
   document.getElementById('bulkBar').classList.toggle('show', n>0);
 }
 function bulkDelete(){
-  const n = document.querySelectorAll('.rowcb:checked').length;
-  if(confirm(`선택한 ${n}개 동영상을 삭제하시겠습니까?\n사용 중인 강의가 있는 경우 삭제 전 확인이 필요합니다.`)){
+  const checked = [...document.querySelectorAll('.rowcb:checked')];
+  const n = checked.length;
+  const inUse = checked.filter(cb=>{
+    const v = videos.find(v=>v.id===cb.closest('tr').dataset.id);
+    return v.courses.length > 0;
+  });
+  if(inUse.length){
+    alert(`선택한 동영상 중 ${inUse.length}개는 사용 중인 강의가 있어 삭제할 수 없습니다.\n먼저 강의에서 사용을 해제한 후 다시 시도해주세요.`);
+    return;
+  }
+  if(confirm(`선택한 ${n}개 동영상을 삭제하시겠습니까?`)){
     showToast(`${n}개 동영상이 삭제되었습니다`);
-    document.querySelectorAll('.rowcb:checked').forEach(cb=>cb.checked=false);
+    checked.forEach(cb=>cb.checked=false);
     updateBulkBar();
   }
 }
@@ -788,8 +797,11 @@ function confirmMove(){
 }
 function deleteOne(id){
   const v = videos.find(v=>v.id===id);
-  if(v.courses.length){ if(!confirm(`이 동영상은 ${v.courses.length}개 강의에서 사용 중입니다.\n그래도 삭제하시겠습니까?`)) return; }
-  else if(!confirm('이 동영상을 삭제하시겠습니까?')) return;
+  if(v.courses.length){
+    alert(`이 동영상은 ${v.courses.length}개 강의에서 사용 중이어서 삭제할 수 없습니다.\n먼저 강의에서 사용을 해제한 후 다시 시도해주세요.`);
+    return;
+  }
+  if(!confirm('이 동영상을 삭제하시겠습니까?')) return;
   showToast('동영상이 삭제되었습니다');
 }
 
